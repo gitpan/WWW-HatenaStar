@@ -1,4 +1,7 @@
 Revision history for Perl extension WWW::HatenaStar
 
+0.02  Sun Nov 16 21:45:39 2008
+        - when you have error, set the error message to instance.
+
 0.01  Fri Feb 15 20:34:26 2008
         - original version

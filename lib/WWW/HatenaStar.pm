@@ -2,13 +2,17 @@ package WWW::HatenaStar;
 
 use strict;
 use 5.8.1;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
+
+
+use base qw(Class::Accessor::Fast);
+__PACKAGE__->mk_accessors(qw(error));
 
 use WWW::HatenaLogin;
 use URI;
 use JSON::Syck 'Load';
-use Carp qw(croak);
 use Scalar::Util qw(blessed);
+
 
 sub new {
     my ($class, $args) = @_;
@@ -19,19 +23,31 @@ sub new {
     $self;
 }
 
+
 sub _login {
     my $self = shift;
 
-    my $session = WWW::HatenaLogin->new({
-        username => $self->{config}->{username},
-        password => $self->{config}->{password},
-        mech_opt => {
-            timeout => $self->{config}->{timeout} || 30,
-        },
-    });
+    my $session = eval {
+        WWW::HatenaLogin->new({
+            username => $self->{config}->{username},
+            password => $self->{config}->{password},
+            mech_opt => {
+                timeout => $self->{config}->{timeout} || 30,
+            },
+        });
+    };
+    if ($@) {
+        $self->error("WWW::HatenaLogin failed : " . $@);
+        return undef;
+    }
+    unless ($session->is_loggedin) {
+        $self->error("not logged in");
+        return undef;
+    }
 
     $self->{session} = $session;
 }
+
 
 sub stars {
     my ($self, $data) = @_;
@@ -39,35 +55,73 @@ sub stars {
     if (blessed($data) && $data->isa('URI')) {
         $data = { uri => $data->as_string };
     } elsif (ref($data) ne 'HASH') {
-        $data = { uri => $data };
+        $self->error("parameter must be HASHREF");
+        return undef;
     }
 
-    my $count = exists($data->{count}) ? $data->{count} : 1;
+    my $count = exists($data->{count}) ? $data->{count} : 0;
 
-    $self->_entries_json($data->{uri});
-    while ($count--) {
-        $self->_star_add_json($data);
+    my $res = $self->_entries_json($data->{uri});
+    return undef unless $res;
+
+    if ($count) {
+        while ($count--) {
+            $res = $self->_star_add_json($data);
+            return undef unless $res;
+        }
+
+        $res = $self->_entries_json($data->{uri});
+        return undef unless $res;
+    }
+
+    $res;
+}
+
+
+sub _get {
+    my ($self, $uri) = @_;
+
+    unless ($self->{_logged_in}++) {
+        my $loginres = $self->_login;
+        return undef unless $loginres;
+    }
+
+    my $mech = $self->{session}->mech;
+    $mech->get($uri);
+
+    if ($mech->success) {
+        $self->error(0);
+        return $mech->content;
+    } else {
+        $self->error("access failed: " . $mech->res->status_line);
+        return undef;
     }
 }
+
 
 sub _entries_json {
     my ($self, $url) = @_;
-    $self->_login unless $self->{_logged_in}++;
 
     my $uri = URI->new("http://s.hatena.ne.jp/entries.json");
-    $uri->query_form(
-        uri => $url,
-    );
-    $self->{session}->mech->get($uri->as_string);
-    $self->{$url}->{rks} = Load($self->{session}->mech->content)->{rks};
-    croak "cannot get rks for $url" unless $self->{$url}->{rks};
+    $uri->query_form( uri => $url );
 
-    $self;
+    my $res = $self->_get($uri);
+    return undef unless $res;
+
+    my $content = Load($res);
+    unless (exists($content->{rks})) {
+        $self->error("cannot get rks for $url");
+        return undef;
+    }
+
+    $self->{$url}->{rks} = $content->{rks};
+
+    $content;
 }
+
 
 sub _star_add_json {
     my ($self, $data) = @_;
-    $self->_login unless $self->{_logged_in}++;
 
     my $url = $data->{uri};
     my $uri = URI->new("http://s.hatena.ne.jp/star.add.json");
@@ -80,13 +134,16 @@ sub _star_add_json {
     $form{rks} = $self->{$url}->{rks};
     $uri->query_form(\%form);
 
-    $self->{session}->mech->get($uri->as_string);
+    my $res = $self->_get($uri);
+    return undef unless $res;
 
-    my $res = Load($self->{session}->mech->content);
-    croak $res->{errors} if defined($res->{errors});
-    $self->{$url}->{res} = $res;
+    my $content = Load($res);
+    if (defined($content->{errors})) {
+        $self->error($content->{errors});
+        return undef;
+    }
 
-    $self;
+    $res;
 }
 
 1;
@@ -103,9 +160,17 @@ WWW::HatenaStar - perl interface to Hatena::Star
   my $conf = { username => "woremacx", password => "vagina" };
   my $star = WWW::HatenaStar->new({ config => $conf });
 
-  my $uri = "http://blog.woremacx.com/2008/01/shut-the-fuck-up-and-just-be-chaos.html";
+  my $uri = "http://blog.woremacx.com/";
   # you will have 5 stars
-  $star->stars({ uri => $uri, count => 5 });
+  my $res = $star->stars({
+      uri   => $uri,
+      quote => "woremacx++",
+      count => 5,
+  });
+  unless ($res) {
+      die "WWW::HatenaStar complains : " . $star->error;
+  }
+
 
 =head1 DESCRIPTION
 
@@ -114,6 +179,10 @@ WWW::HatenaStar is perl interface to Hatena::Star.
 =head1 AUTHOR
 
 woremacx E<lt>woremacx at cpan dot orgE<gt>
+
+=head1 THANKS
+
+dann (cpanid: kitano)
 
 =head1 LICENSE
 
