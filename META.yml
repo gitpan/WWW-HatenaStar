@@ -16,6 +16,7 @@ no_index:
     - inc
     - t
 requires:
+  Class::Accessor::Fast: 0
   JSON::Syck: 0
   URI: 0
   WWW::HatenaLogin: 0.02
@@ -23,4 +24,4 @@ requires:
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.02
+version: 0.03

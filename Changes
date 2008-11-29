@@ -1,5 +1,9 @@
 Revision history for Perl extension WWW::HatenaStar
 
+0.03  Sat Nov 29 14:39:58 2008
+        - no code changes
+        - add Class::Accessor::Fast to requires.
+
 0.02  Sun Nov 16 21:45:39 2008
         - when you have error, set the error message to instance.
 

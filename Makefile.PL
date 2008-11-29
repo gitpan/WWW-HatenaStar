@@ -3,6 +3,7 @@ name 'WWW-HatenaStar';
 all_from 'lib/WWW/HatenaStar.pm';
 
 requires $_ for (qw/
+    Class::Accessor::Fast
     URI
     WWW::Mechanize
     JSON::Syck

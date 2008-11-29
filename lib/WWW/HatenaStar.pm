@@ -2,7 +2,7 @@ package WWW::HatenaStar;
 
 use strict;
 use 5.8.1;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 
 use base qw(Class::Accessor::Fast);
