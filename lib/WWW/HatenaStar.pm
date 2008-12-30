@@ -2,7 +2,7 @@ package WWW::HatenaStar;
 
 use strict;
 use 5.8.1;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 
 use base qw(Class::Accessor::Fast);
@@ -12,7 +12,7 @@ use WWW::HatenaLogin;
 use URI;
 use JSON::Syck 'Load';
 use Scalar::Util qw(blessed);
-
+use Time::HiRes qw(sleep);
 
 sub new {
     my ($class, $args) = @_;
@@ -50,7 +50,7 @@ sub _login {
 
 
 sub stars {
-    my ($self, $data) = @_;
+    my ($self, $data, $opt) = @_;
 
     if (blessed($data) && $data->isa('URI')) {
         $data = { uri => $data->as_string };
@@ -65,9 +65,22 @@ sub stars {
     return undef unless $res;
 
     if ($count) {
-        while ($count--) {
+        my $wait = exists($opt->{wait}) ? $opt->{wait} : 0.5;
+
+        my $cur = 0;
+        my $max = $count;
+        my $callback = ();
+        if ($opt && $opt->{callback} && ref($opt->{callback}) eq 'CODE') {
+            $callback = $opt->{callback};
+            $callback->($cur, $max);
+        }
+
+        for ($cur = 1; $cur <= $max; $cur++) {
             $res = $self->_star_add_json($data);
             return undef unless $res;
+            sleep($wait);
+
+            $callback->($cur, $max) if $callback;
         }
 
         $res = $self->_entries_json($data->{uri});
@@ -166,6 +179,13 @@ WWW::HatenaStar - perl interface to Hatena::Star
       uri   => $uri,
       quote => "woremacx++",
       count => 5,
+  }, {
+      # defualt wait is 0.5
+      wait     => 1,
+
+      # will passed $current_count and $max_count to callback
+      # example: eg/with_progress.pl
+      callback => \&callback,
   });
   unless ($res) {
       die "WWW::HatenaStar complains : " . $star->error;
@@ -179,6 +199,8 @@ WWW::HatenaStar is perl interface to Hatena::Star.
 =head1 AUTHOR
 
 woremacx E<lt>woremacx at cpan dot orgE<gt>
+
+otsune
 
 =head1 THANKS
 

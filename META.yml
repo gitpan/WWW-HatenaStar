@@ -18,10 +18,11 @@ no_index:
 requires:
   Class::Accessor::Fast: 0
   JSON::Syck: 0
+  Time::HiRes: 0
   URI: 0
   WWW::HatenaLogin: 0.02
   WWW::Mechanize: 0
   perl: 5.8.1
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.03
+version: 0.04

@@ -7,6 +7,7 @@ requires $_ for (qw/
     URI
     WWW::Mechanize
     JSON::Syck
+    Time::HiRes
 /);
 
 requires WWW::HatenaLogin => 0.02;

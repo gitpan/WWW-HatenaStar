@@ -1,5 +1,10 @@
 Revision history for Perl extension WWW::HatenaStar
 
+0.04  Tue Dec 30 18:35:09 2008
+        - add following option to stars method (otsune)
+          - wait
+          - callback
+
 0.03  Sat Nov 29 14:39:58 2008
         - no code changes
         - add Class::Accessor::Fast to requires.
